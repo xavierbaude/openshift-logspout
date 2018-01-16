@@ -1,0 +1,46 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: logspout-daemonset
+spec:
+# a daemonset use a selector. If empty, the ds is deployed on all nodes.
+#  selector:
+#      matchLabels:
+#        label: 'value'
+  template:
+    metadata:
+      labels:
+        name: 'logspout'
+    spec:
+      volumes:
+        - name: dockerdotsock
+          hostPath:
+            path: /var/run/docker.sock
+      serviceAccountName: logspout
+      nodeSelector:
+        openshift: 'true'
+      containers:
+      - image: gliderlabs/logspout:latest
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        imagePullPolicy: Always
+        name: registry
+        resources: {}
+        env:
+          - name: SYSLOG_STRUCTURED_DATA
+            value: customtag=openshift-logspout
+        command:
+          - /bin/logspout 
+          - syslog://<syslog_IP>:<syslog_port>
+        serviceAccount: default
+        terminationGracePeriodSeconds: 10
+        volumeMounts:
+          - name: dockerdotsock
+            mountPath: /var/run/docker.sock
+            readOnly: true
+        securityContext:
+          privileged: true
